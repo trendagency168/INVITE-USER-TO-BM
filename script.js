@@ -1,8 +1,8 @@
 (() => { 
 // ========================================================================= 
-// TREND AGENCY - BM USER INVITER v2.0
+// TREND AGENCY - BM USER INVITER v2.1 (FIXED)
 // Facebook Business Manager User Inviter Tool
-// Developed by Mr.OK
+// Developed by Trend Agency
 // ========================================================================= 
 
 // Xóa giao diện cũ nếu tồn tại 
@@ -94,7 +94,7 @@ const uiHtml = `
     </div> 
     <div class="ta-form-group"> 
         <label for="logArea" style="margin-top: 15px;">Progress Log</label> 
-        <div id="logArea" class="ta-logs">⭐ TREND AGENCY - BM User Inviter v2.0 ⭐<br>Welcome to TREND AGENCY Tool!</div> 
+        <div id="logArea" class="ta-logs">⭐ TREND AGENCY - BM User Inviter v2.1 ⭐<br>Welcome to TREND AGENCY Tool!</div> 
         <div id="copySection" style="display: none; margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"> 
             <button id="copySuccessBtn" class="ta-button ta-button-secondary" style="width: auto; padding: 6px 12px; font-size: 13px;">✅ Copy Success</button> 
             <button id="copyFailBtn" class="ta-button ta-button-secondary" style="width: auto; padding: 6px 12px; font-size: 13px;">❌ Copy Failed</button> 
@@ -194,50 +194,74 @@ function cancellableDelay(ms) {
     }); 
 } 
 
-// Gọi Graph API để mời user 
+// ========================================================================= 
+// PHẦN FIX: Gọi API mời user với endpoint đúng 
+// ========================================================================= 
+
+// Gọi Graph API để mời user - FIXED VERSION
 async function inviteUserToBM(businessId, userIdOrEmail, role = 'employee', accessToken) { 
-    const url = `https://graph.facebook.com/v19.0/${businessId}/invited_users`; 
-    let data = { user: userIdOrEmail, role, access_token: accessToken }; 
-    if (userIdOrEmail.includes('@')) data.email = userIdOrEmail; 
+    // Sử dụng endpoint đúng cho Business Manager
+    const url = `https://graph.facebook.com/v19.0/${businessId}/business_users`;
+    
+    // Data untuk invite user
+    let data = { 
+        email: userIdOrEmail, 
+        role: role,
+        access_token: accessToken 
+    };
 
     try { 
         const formData = new URLSearchParams(data); 
         const response = await fetch(url, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+            headers: { 
+                'Content-Type': 'application/x-www-form-urlencoded' 
+            }, 
             body: formData.toString(), 
             credentials: 'include' 
         }); 
+        
         if (!response.ok) { 
             const errorData = await response.json(); 
-            return { status: false, error: errorData.error?.message || `HTTP ${response.status}` }; 
+            return { 
+                status: false, 
+                error: errorData.error?.message || `HTTP ${response.status}` 
+            }; 
         } 
         const result = await response.json(); 
+        
         if (result.success || result.id) { 
             return { status: true, data: result }; 
         } 
-        return { status: false, error: result.error?.message || 'Failed to invite user' }; 
+        return { 
+            status: false, 
+            error: result.error?.message || 'Failed to invite user' 
+        }; 
     } catch (e) { 
         return { status: false, error: e.message }; 
     } 
 } 
 
-// Kiểm tra user đã được mời chưa 
+// Kiểm tra user đã được mời chưa - FIXED VERSION
 async function checkUserInvited(businessId, userId, accessToken) { 
-    const url = `https://graph.facebook.com/v19.0/${businessId}/invited_users?user_id=${userId}&access_token=${accessToken}`; 
+    const url = `https://graph.facebook.com/v19.0/${businessId}/business_users?email=${userId}&access_token=${accessToken}`; 
     try { 
         const response = await fetch(url, { credentials: 'include' }); 
         if (!response.ok) return { status: false, error: `HTTP ${response.status}` }; 
         const data = await response.json(); 
-        return { status: true, invited: data.data && data.data.length > 0, data: data.data }; 
+        return { 
+            status: true, 
+            invited: data.data && data.data.length > 0, 
+            data: data.data 
+        }; 
     } catch (e) { 
         return { status: false, error: e.message }; 
     } 
 } 
 
-// Lấy danh sách user đã mời 
+// Lấy danh sách user đã mời - FIXED VERSION
 async function getInvitedUsers(businessId, accessToken) { 
-    const url = `https://graph.facebook.com/v19.0/${businessId}/invited_users?access_token=${accessToken}`; 
+    const url = `https://graph.facebook.com/v19.0/${businessId}/business_users?access_token=${accessToken}`; 
     try { 
         const response = await fetch(url, { credentials: 'include' }); 
         if (!response.ok) return { status: false, error: `HTTP ${response.status}` }; 
@@ -248,7 +272,9 @@ async function getInvitedUsers(businessId, accessToken) {
     } 
 } 
 
+// ========================================================================= 
 // LOGIC CHÍNH 
+// ========================================================================= 
 async function startProcess() { 
     isRunning = true; 
     stopRequested = false; 
@@ -295,9 +321,9 @@ async function startProcess() {
                 logToUI(`📋 ${result.users.length} invited users found:`); 
                 result.users.forEach((u, i) => { 
                     const role = u.role || 'employee'; 
-                    logToUI(`${i+1}. ${u.id || u.email || 'N/A'} - Role: ${role}`); 
+                    logToUI(`${i+1}. ${u.email || u.id || 'N/A'} - Role: ${role}`); 
                 }); 
-                const userIds = result.users.map(u => u.id || u.email).filter(Boolean); 
+                const userIds = result.users.map(u => u.email || u.id).filter(Boolean); 
                 if (userIds.length > 0) { 
                     copySection.style.display = 'flex'; 
                     copySuccessBtn.innerHTML = `📋 Copy ${userIds.length} IDs`; 
