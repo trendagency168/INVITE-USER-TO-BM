@@ -1,6 +1,6 @@
 (() => { 
 // ========================================================================= 
-// TREND AGENCY - BM USER INVITER v2.1 (FIXED)
+// TREND AGENCY - BM USER INVITER v2.1 (FIXED TOKEN RETRIEVAL)
 // Facebook Business Manager User Inviter Tool
 // Developed by Trend Agency
 // ========================================================================= 
@@ -132,6 +132,43 @@ const threadsInput = document.getElementById('threadsInput');
 const delayMinInput = document.getElementById('delayMinInput'); 
 const delayMaxInput = document.getElementById('delayMaxInput'); 
 
+// ========== FUNGSI GET ACCESS TOKEN (DIPERBAIKI) ==========
+function getAccessToken() {
+    // 1. Coba dari WebApiApplication (umum di halaman BM)
+    if (typeof WebApiApplication !== 'undefined' && typeof WebApiApplication.getAccessToken === 'function') {
+        try {
+            const token = WebApiApplication.getAccessToken();
+            if (token) return token;
+        } catch (_) {}
+    }
+
+    // 2. Coba dari window.FB (jika SDK dimuat)
+    if (typeof FB !== 'undefined' && FB.getAuthResponse) {
+        try {
+            const auth = FB.getAuthResponse();
+            if (auth && auth.accessToken) return auth.accessToken;
+        } catch (_) {}
+    }
+
+    // 3. Coba dari script tag atau data di halaman
+    const scripts = document.querySelectorAll('script');
+    for (let script of scripts) {
+        const match = script.textContent.match(/access_token["']?\s*[:=]\s*["']([^"']+)["']/i);
+        if (match && match[1]) return match[1];
+    }
+
+    // 4. Coba dari cookie (jarang, tapi coba)
+    const cookies = document.cookie.split('; ');
+    for (let cookie of cookies) {
+        if (cookie.startsWith('access_token=')) {
+            return cookie.split('=')[1];
+        }
+    }
+
+    // 5. Jika semua gagal, minta input manual
+    return prompt('🔑 Tidak dapat menemukan Access Token secara otomatis.\nSilakan masukkan Access Token Anda (bisa didapat dari Graph API Explorer atau halaman BM):');
+}
+
 // Hàm log 
 const logToUI = (message, ...args) => { 
     const line = document.createElement('div'); 
@@ -157,7 +194,7 @@ const logToUI = (message, ...args) => {
     logArea.scrollTop = logArea.scrollHeight; 
 }; 
 
-// Lấy BM hiện tại dari URL 
+// Lấy BM hiện tại từ URL 
 function getCurrentBmFromUrl() { 
     try { 
         const urlParams = new URLSearchParams(window.location.search); 
@@ -200,10 +237,7 @@ function cancellableDelay(ms) {
 
 // Gọi Graph API để mời user - FIXED VERSION
 async function inviteUserToBM(businessId, userIdOrEmail, role = 'employee', accessToken) { 
-    // Sử dụng endpoint đúng cho Business Manager
     const url = `https://graph.facebook.com/v19.0/${businessId}/business_users`;
-    
-    // Data untuk invite user
     let data = { 
         email: userIdOrEmail, 
         role: role,
@@ -286,8 +320,9 @@ async function startProcess() {
     failedInviteList = []; 
 
     try { 
-        const accessToken = require('WebApiApplication')['getAccessToken'](); 
-        if (!accessToken) throw new Error('Unable to get Access Token. Please refresh the page.'); 
+        // Lấy access token với hàm mới
+        const accessToken = getAccessToken(); 
+        if (!accessToken) throw new Error('Access token is required. Please refresh the page or enter manually.'); 
         logToUI('✅ Access token obtained successfully'); 
 
         const businessId = bmIdInput.value.trim(); 
